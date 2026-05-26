@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BST Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: #1e293b;
+      padding: 11px 18px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      flex-shrink: 0;
+    }
+    .title-row { display: flex; align-items: center; gap: 18px; }
+    h1 { font-size: 18px; color: #38bdf8; letter-spacing: 0.3px; }
+    .legend { display: flex; gap: 14px; font-size: 11px; color: #64748b; align-items: center; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .ld { width: 11px; height: 11px; border-radius: 50%; }
+    .controls { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+    input[type=number] {
+      padding: 6px 11px; border-radius: 7px;
+      border: 1px solid #475569; background: #0f172a;
+      color: #e2e8f0; font-size: 14px; width: 90px;
+    }
+    input[type=number]:focus { outline: none; border-color: #38bdf8; }
+    button {
+      padding: 6px 14px; border: none; border-radius: 7px;
+      cursor: pointer; font-size: 12px; font-weight: 700;
+      transition: opacity .15s, transform .1s;
+    }
+    button:hover  { opacity: .85; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    .bi { background: #0ea5e9; color: #fff; }
+    .bs { background: #a855f7; color: #fff; }
+    .bd { background: #ef4444; color: #fff; }
+    .bt { background: #16a34a; color: #fff; }
+    .br { background: #f59e0b; color: #1a1a1a; }
+    .bc { background: #475569; color: #fff; }
+    .sep { width: 1px; height: 26px; background: #334155; margin: 0 3px; }
+
+    canvas { flex: 1; display: block; }
+
+    .info-bar {
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      padding: 7px 18px;
+      display: flex; gap: 14px; align-items: center;
+      font-size: 12px; min-height: 40px; flex-shrink: 0;
+    }
+    #statusMsg { color: #94a3b8; flex: 1; }
+    .tseq { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+    .tseq-label { color: #64748b; font-size: 11px; white-space: nowrap; }
+    .sq {
+      padding: 2px 8px; border-radius: 5px;
+      background: #1e3a5f; font-size: 12px;
+      font-weight: bold; color: #7dd3fc;
+      transition: background .25s, color .25s;
+    }
+    .sq.active { background: #f59e0b; color: #1a1a1a; }
+    .sq.done   { background: #16a34a; color: #fff; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <h1>Binary Search Tree Visualizer</h1>
+    <div class="legend">
+      <div class="legend-item"><div class="ld" style="background:#1d4ed8"></div>Normal</div>
+      <div class="legend-item"><div class="ld" style="background:#f59e0b"></div>Visiting</div>
+      <div class="legend-item"><div class="ld" style="background:#16a34a"></div>Found / Done</div>
+      <div class="legend-item"><div class="ld" style="background:#ef4444"></div>Not found</div>
+    </div>
+  </div>
+  <div class="controls">
+    <input type="number" id="inp" placeholder="Value" min="-999" max="999">
+    <button class="bi" onclick="doInsert()">Insert</button>
+    <button class="bs" onclick="doSearch()">Search</button>
+    <button class="bd" onclick="doDelete()">Delete</button>
+    <div class="sep"></div>
+    <button class="bt" onclick="doTrav('inorder')">In-Order</button>
+    <button class="bt" onclick="doTrav('preorder')">Pre-Order</button>
+    <button class="bt" onclick="doTrav('postorder')">Post-Order</button>
+    <div class="sep"></div>
+    <button class="br" onclick="doRandom()">&#9684; Random</button>
+    <button class="bc" onclick="doClear()">Clear</button>
+  </div>
+</header>
+
+<canvas id="c"></canvas>
+
+<div class="info-bar">
+  <span id="statusMsg">Press Random to load a sample tree, or type a number and click Insert.</span>
+  <div class="tseq" id="tseq"></div>
+</div>
+
+<script>
+// ─── BST ────────────────────────────────────────────────────────────────────
+
+class Node {
+  constructor(v) { this.v = v; this.l = this.r = null; this.x = this.y = 0; }
+}
+
+class BST {
+  constructor() { this.root = null; }
+
+  insert(v) { this.root = ins(this.root, v); }
+  search(v) {
+    const path = []; let c = this.root;
+    while (c) { path.push(c); if (v === c.v) break; c = v < c.v ? c.l : c.r; }
+    return path;
+  }
+  delete(v) { this.root = del(this.root, v); }
+  inOrder()   { const r=[]; io(this.root,r);  return r; }
+  preOrder()  { const r=[]; pre(this.root,r); return r; }
+  postOrder() { const r=[]; post(this.root,r);return r; }
+}
+
+function ins(n, v)  { if (!n) return new Node(v); if (v<n.v) n.l=ins(n.l,v); else if(v>n.v) n.r=ins(n.r,v); return n; }
+function del(n, v)  {
+  if (!n) return null;
+  if (v<n.v) { n.l=del(n.l,v); return n; }
+  if (v>n.v) { n.r=del(n.r,v); return n; }
+  if (!n.l) return n.r; if (!n.r) return n.l;
+  let m=n.r; while(m.l) m=m.l; n.v=m.v; n.r=del(n.r,m.v); return n;
+}
+function io(n,r)   { if(!n)return; io(n.l,r);   r.push(n); io(n.r,r);   }
+function pre(n,r)  { if(!n)return; r.push(n); pre(n.l,r);  pre(n.r,r);  }
+function post(n,r) { if(!n)return; post(n.l,r); post(n.r,r); r.push(n); }
+
+// ─── LAYOUT ─────────────────────────────────────────────────────────────────
+
+function layout(root, W) {
+  if (!root) return;
+  let idx = 0;
+  (function setIdx(n) { if(!n)return; setIdx(n.l); n._i=idx++; setIdx(n.r); })(root);
+  (function setD(n,d) { if(!n)return; n._d=d; setD(n.l,d+1); setD(n.r,d+1); })(root, 0);
+  const count   = idx;
+  const spacing = Math.max(48, (W - 80) / count);
+  const offX    = (W - spacing * count) / 2 + spacing / 2;
+  (function setXY(n) {
+    if(!n)return;
+    n.x = offX + n._i * spacing;
+    n.y = 58 + n._d * 72;
+    setXY(n.l); setXY(n.r);
+  })(root);
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const R = 20;
+let hi = new Map(); // node → fill color
+let timer = null;
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!bst.root) {
+    ctx.fillStyle = '#334155'; ctx.font = '16px Segoe UI';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Tree is empty — insert a value or press Random', canvas.width/2, canvas.height/2);
+    return;
+  }
+  layout(bst.root, canvas.width);
+  drawEdges(bst.root);
+  drawNodes(bst.root);
+}
+
+function drawEdges(n) {
+  if (!n) return;
+  ctx.lineWidth = 2; ctx.strokeStyle = '#334155';
+  [n.l, n.r].forEach(ch => { if(ch){ ctx.beginPath(); ctx.moveTo(n.x,n.y); ctx.lineTo(ch.x,ch.y); ctx.stroke(); drawEdges(ch); } });
+}
+
+function drawNodes(n) {
+  if (!n) return;
+  drawNodes(n.l); drawNodes(n.r);
+  const fill   = hi.get(n) || '#1d4ed8';
+  const stroke = hi.has(n) ? fill : '#38bdf8';
+
+  ctx.beginPath(); ctx.arc(n.x+2, n.y+3, R, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(n.x, n.y, R, 0, Math.PI*2);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = stroke; ctx.lineWidth = 2.5; ctx.stroke();
+
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(n.v, n.x, n.y);
+}
+
+// ─── ANIMATION HELPERS ───────────────────────────────────────────────────────
+
+function stopAnim() { clearTimeout(timer); timer = null; hi.clear(); }
+
+function animSeq(nodes, colorFn, delay, onDone) {
+  stopAnim();
+  let i = 0;
+  (function step() {
+    if (i > 0) hi.set(nodes[i-1], '#16a34a');
+    if (i >= nodes.length) { draw(); if (onDone) onDone(); return; }
+    hi.set(nodes[i], colorFn(i, nodes.length));
+    draw(); i++;
+    timer = setTimeout(step, delay);
+  })();
+}
+
+// ─── CONTROLS ────────────────────────────────────────────────────────────────
+
+const bst = new BST();
+
+function val() {
+  const v = parseInt(document.getElementById('inp').value);
+  if (isNaN(v)) { status('Please enter a number.'); return null; }
+  return v;
+}
+function status(m) { document.getElementById('statusMsg').textContent = m; }
+function clearSeq() { document.getElementById('tseq').innerHTML = ''; }
+
+function doInsert() {
+  const v = val(); if (v === null) return;
+  stopAnim(); bst.insert(v);
+  status('Inserted ' + v + '.'); clearSeq(); draw();
+  document.getElementById('inp').value = '';
+}
+
+function doSearch() {
+  const v = val(); if (v === null) return;
+  stopAnim(); clearSeq();
+  const path = bst.search(v);
+  if (!path.length) { status('Tree is empty.'); return; }
+  const found = path[path.length-1].v === v;
+  animSeq(path,
+    (i, len) => i < len-1 ? '#f59e0b' : (found ? '#16a34a' : '#ef4444'),
+    480,
+    () => status(found
+      ? 'Found ' + v + ' — visited ' + path.length + ' node(s).'
+      : v + ' not in tree — searched ' + path.length + ' node(s).')
+  );
+  status('Searching for ' + v + '…');
+}
+
+function doDelete() {
+  const v = val(); if (v === null) return;
+  stopAnim(); clearSeq();
+  const path = bst.search(v);
+  const found = path.length && path[path.length-1].v === v;
+  if (!found) {
+    path.forEach(n => hi.set(n, '#ef4444')); draw();
+    status(v + ' not found in tree.');
+    timer = setTimeout(() => { hi.clear(); draw(); }, 800);
+    return;
+  }
+  hi.set(path[path.length-1], '#ef4444'); draw();
+  timer = setTimeout(() => {
+    bst.delete(v); hi.clear();
+    status('Deleted ' + v + '.'); draw();
+  }, 650);
+}
+
+function doTrav(type) {
+  if (!bst.root) { status('Tree is empty.'); return; }
+  stopAnim();
+  const seq   = type==='inorder' ? bst.inOrder() : type==='preorder' ? bst.preOrder() : bst.postOrder();
+  const label = type==='inorder' ? 'In-Order' : type==='preorder' ? 'Pre-Order' : 'Post-Order';
+
+  const seqEl = document.getElementById('tseq');
+  seqEl.innerHTML = '<span class="tseq-label">' + label + ':</span>'
+    + seq.map((n,i) => '<span class="sq" id="sq'+i+'">'+n.v+'</span>').join('<span style="color:#475569;margin:0 1px">›</span>');
+
+  status(label + ' traversal — ' + seq.length + ' nodes.');
+
+  let i = 0;
+  (function step() {
+    if (i > 0) {
+      hi.set(seq[i-1], '#16a34a');
+      const prev = document.getElementById('sq'+(i-1));
+      if (prev) { prev.classList.remove('active'); prev.classList.add('done'); }
+    }
+    if (i >= seq.length) { draw(); return; }
+    hi.set(seq[i], '#f59e0b');
+    const cur = document.getElementById('sq'+i);
+    if (cur) cur.classList.add('active');
+    draw(); i++;
+    timer = setTimeout(step, 520);
+  })();
+}
+
+function doRandom() {
+  stopAnim(); bst.root = null; hi.clear(); clearSeq();
+  const n = 9 + Math.floor(Math.random() * 4);
+  const vals = new Set();
+  while (vals.size < n) vals.add(Math.floor(Math.random()*98)+1);
+  vals.forEach(v => bst.insert(v));
+  status('Inserted ' + n + ' values: ' + [...vals].join(', '));
+  draw();
+}
+
+function doClear() {
+  stopAnim(); bst.root = null; hi.clear(); clearSeq();
+  status('Tree cleared.'); draw();
+}
+
+document.getElementById('inp').addEventListener('keydown', e => { if(e.key==='Enter') doInsert(); });
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────────
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight
+    - document.querySelector('header').offsetHeight
+    - document.querySelector('.info-bar').offsetHeight;
+  draw();
+}
+window.addEventListener('resize', resize);
+resize();
+doRandom();
+</script>
+</body>
+</html>
